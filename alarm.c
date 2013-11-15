@@ -38,7 +38,7 @@ int alarm_remaining;
 
 // Program mode
 enum mode {
-	/*setup,*/clock, set_clock, set_alarm
+	/*setup,*/clock, set_clock, set_alarm, alarm_mode
 };
 enum mode current_mode = clock;
 
@@ -54,34 +54,49 @@ boolean button0pressed(void);
 boolean button1pressed(void);
 void set_time_run_loop(struct time *ptime)
 
+void updateDisplayTime() {
+	displayTimeStruct(4, clock_time);
+}
 
-void high_isr (void) // interrupt 1
+void high_isr (void) // One intterupt every 0.5sec to blink the led, every other interrupt we increment our clock
 {
-    static int alternate = 1;//need to alternate between 39062 and 39063 for correct time
+	static int alternate = 1;//need to alternate between 39062 and 39063 for correct time
 	if(INTCONbits.TMR0IF  == 1)
-    {
-    	if(alternate == 0){
-    		time_increment(clock_time);
-    	}
+	{
+		if(alternate == 0){
+			time_increment(clock_time);
+			updateDisplayTime();
 
-    	int a =0x10000-39062 - alternate; // Prescaler is used so 39063 is  0.5000064 sec
-        TMR0H = HIGH(a);
-        TMR0L= LOW(a);
-    	INTCONbits.TMR0IF  = 0;
-    	alternate = (alternate==1) ? 0 : 1 ;
-    }
+		}
+		if(current_mode == alarm_mode){
+			soundAlarm();
+		}
+		LED0_IO ^=1; //Blink the yellow led
+		int a =0x10000-39062 - alternate; // Prescaler is used so 39063 is  0.5000064 sec
+		TMR0H = HIGH(a);
+		TMR0L= LOW(a);
+		INTCONbits.TMR0IF  = 0;
+		alternate = (alternate==1) ? 0 : 1 ;
+	}
 
 
 }
 
 void main(void) {
 
-	//Intitialize the LCD
-    LCDInit();
-    delay_ms(1000);
+	LED0_TRIS = 0; //configure 1st led pin as output (yellow)
+	LED1_TRIS = 0;
 
-    //Ask to set time
-    DisplayString (0,"Set Current Time");
+	BUTTON0_TRIS = 1; //configure button0 as input
+
+	BUTTON1_TRIS = 1; //configure button0 as input
+
+	//Intitialize the LCD
+	LCDInit();
+	delay_ms(1000);
+
+	//Ask to set time
+	DisplayString (0,"Set Current Time");
 	set_time_run_loop(clock_time);
 
 	//Initialize timer0 to get interrupt every second.
@@ -102,20 +117,27 @@ void main(void) {
 	INTCONbits.TMR0IE=1; //enable external interrupt procedure
 	T0CONbits.TMR0ON=1; // enable timer0
 
+	/*
+	 * just an idea, use button as interrupt as well?, disable interrupts in interrupt vector?
+	 */
+
+	INTCON3bits.INT1P  = 1;   //connect INT1 interrupt (button 2) to high prio
+	INTCON2bits.INTEDG1= 0;   //INT1 interrupts on falling edge
+	INTCON3bits.INT1E  = 1;   //enable INT1 interrupt (button 2)
+	INTCON3bits.INT1F  = 0;   //clear INT1 flag
+
+	DisplayString(0,"Time");
+	updateDisplayTime();
+	DisplayString(12,"Alarm");
+	displayTimeStruct(17,alarm_time);
 	while(1){
-
-
+		/*
+		 * if clock_time equals alarm_time sound alarm, could it be that we miss this through intterupts?
+		 */
 		if(time_equals(clock_time,alarm_time)){
 			soundalarm();
 		}
 
-		if(button0doublepressed()){
-			set_time_run_loop(clock_time);
-		}
-
-		if(button1doublepressed()){
-			set_alarm_run_loop(alarm_time);
-		}
 	}
 }
 
@@ -187,8 +209,7 @@ void set_time_run_loop(struct time *ptime) {
 }
 
 /*
- * to start one of the mode you have to double press or long press the button...
- * haven't tested it yet...
+ * double press functionality?
  */
 boolean button0doublepressed(){
 	if(!button0pressed()){
@@ -205,46 +226,108 @@ boolean button0doublepressed(){
 		return true;
 	}
 	wasPressed = button0pressed();
+	return false;
 }
 
 long getTimeInSeconds(){
-	long ret_value =  (clock_time->hours * 60 + clock_time->minutes ) + clock_time->seconds;
+	long ret_value =  (clock_time->hours * 60 + clock_time->minutes ) * 60 + clock_time->seconds;
 	return ret_value;
-}
-
-// wait for approx 1ms
-void delay_1ms(void) {
-	TMR0H=(0x10000-EXEC_FREQ/1000)>>8;
-	TMR0L=(0x10000-EXEC_FREQ/1000)&0xff;// zet nog 10000 op de teller voor overflows
-	T0CONbits.TMR0ON=0; // disable timer0
-	T0CONbits.T08BIT=0; // use timer0 16-bit counter
-	T0CONbits.T0CS=0; // use timer0 instruction cycle clock
-	T0CONbits.PSA=1; // disable timer0 prescaler
-	INTCONbits.T0IF=0; // clear timer0 overflow bit
-	T0CONbits.TMR0ON=1; // enable timer0
-	while (!INTCONbits.T0IF) {} // wait for timer0 overflow
-	INTCONbits.T0IF=0; // clear timer0 overflow bit
-	T0CONbits.TMR0ON=0; // disable timer0
-}
-
-// wait for some ms
-void delay_ms(unsigned int ms) {
-	while (ms--) {
-		delay_1ms();
-	}
 }
 
 void DisplayString(BYTE pos, char* text)
 {
-   BYTE        l = strlen(text);/*number of actual chars in the string*/
-   BYTE      max = 32-pos;      /*available space on the lcd*/
-   char       *d = (char*)&LCDText[pos];
-   const char *s = text;
-   size_t      n = (l<max)?l:max;
-   /* Copy as many bytes as will fit */
-    if (n != 0)
-      while (n-- != 0)*d++ = *s++;
-   LCDUpdate();
+	BYTE        l = strlen(text);/*number of actual chars in the string*/
+	BYTE      max = 32-pos;      /*available space on the lcd*/
+	char       *d = (char*)&LCDText[pos];
+	const char *s = text;
+	size_t      n = (l<max)?l:max;
+	/* Copy as many bytes as will fit */
+	if (n != 0)
+		while (n-- != 0)*d++ = *s++;
+	LCDUpdate();
 
 }
+/*
+ * Bad implementation revisit!
+ */
+displayTimeStruct(BYTE pos, struct time *ptime){
+	BYTE        l = 8;
+	BYTE      max = 32-pos;      /*available space on the lcd*/
+	if(l>max){
+		DisplayString(0,"Error");
+	}
+	char *d = (char*)&LCDText[pos];
+	const char *h = itoaSelf(ptime->hours);
+	if(strlength(*h) == 1){
+		*d++ = '0';
+		*d++ = *h++;
+	}
+	else{
+		*d++ = *h++;
+		*d++ = *h++;
+	}
+	*d++ = ':';
+	const char *m = itoaSelf(ptime->minutes);
+	if(strlength(*m) == 1){
+		*d++ = '0';
+		*d++ = *m++;
+	}
+	else{
+		*d++ = *m++;
+		*d++ = *m++;
+	}
+
+	*d++ = '.';
+	const char *s = itoaSelf(ptime->seconds);
+	if(strlength(*s) == 1){
+		*d++ = '0';
+		*d++ = *s++;
+	}
+	else{
+		*d++ = *s++;
+		*d++ = *s++;
+	}
+
+	LCDUpdate();
+
+}
+
+char* itoaSelf(int i){
+	char const digit[] = "0123456789";
+	char* p = malloc(2);
+	int shifter = i;
+	do{ //Move to where representation ends
+		++p;
+		shifter = shifter/10;
+	}while(shifter);
+	*p = '\0';
+	do{ //Move back, inserting digits as u go
+		*--p = digit[i%10];
+		i = i/10;
+	}while(i);
+	return p;
+}
+
+size_t
+strlength(const char *str)
+{
+	const char *s;
+
+	for (s = str; *s; ++s)
+		;
+	return (s - str);
+}
+
+void soundAlarm(void){
+	static long startTime = getTimeInSeconds();
+	current_mode = alarm_mode;
+	long timePassed = getTimeInSeconds() - startTime;
+	LED0_IO ^=1;
+	if(timePassed > 30){
+		LED0_IO =0;
+		current_mode = clock;
+	}
+}
+
+
 
