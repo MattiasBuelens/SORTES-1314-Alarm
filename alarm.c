@@ -45,9 +45,26 @@ enum set_time_state current_set_time_state = hours;
 
 void time_increment(struct time *ptime);
 boolean time_equals(struct time *ptime1, struct time *ptime2);
+boolean button0pressed(void);
+boolean button1pressed(void);
+void set_time_run_loop(struct time *ptime)
 
 void main(void) {
-	// Insert magic here
+	while(1){
+		time_increment(clock_time);
+
+		if(time_equals(clock_time,alarm_time)){
+			soundalarm();
+		}
+
+		if(button0doublepressed()){
+			set_time_run_loop(clock_time);
+		}
+
+		if(button1doublepressed()){
+			set_alarm_run_loop(alarm_time);
+		}
+	}
 }
 
 void time_increment(struct time *ptime) {
@@ -67,15 +84,23 @@ boolean time_equals(struct time *ptime1, struct time *ptime2) {
 			&& ptime1->seconds == ptime2->seconds;
 }
 
-void set_time_run_loop() {
-	char *current_time_value = &clock_time;
+boolean button0pressed() {
+	return BUTTON0_IO == 0u;
+}
+
+boolean button1pressed() {
+	return BUTTON1_IO == 0u;
+}
+
+void set_time_run_loop(struct time *ptime) {
+	char *current_time_value = &(ptime->hours);
 	while (1) {
-		if (BUTTON0_IO == 0u) {
+		if (button0pressed()) {
 			// Increment value
 			// TODO Cycle value!
 			(*current_time_value)++;
 		}
-		if (BUTTON1_IO == 0u) {
+		if (button1pressed()) {
 			// Next state
 			switch (current_set_time_state) {
 			case hours:
@@ -93,3 +118,28 @@ void set_time_run_loop() {
 		}
 	}
 }
+
+boolean button0doublepressed(){
+	if(!button0pressed()){
+		return false;
+	}
+	static long lasttimepressed = getTimeInSeconds();
+	static long wasPressed = 0;
+	long timeBetweenPress = getTimeInSeconds() - lasttimepressed;
+	if(timeBetweenPress < 0 || timeBetweenPress >20 ){
+		return false;
+	}
+	if(wasPressed && timeBetweenPress > 2){
+		lasttimepressed = getTimeInSeconds();
+		return true;
+	}
+	wasPressed = button0pressed();
+}
+
+long getTimeInSeconds(){
+	long ret_value =  (clock_time->hours * 60 + clock_time->minutes ) + clock_time->seconds;
+	return ret_value;
+}
+
+
+
