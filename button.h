@@ -7,6 +7,8 @@
 
 #include "platform/button.h"
 
+BOOL button0_pressed(void);
+BOOL button1_pressed(void);
 BOOL button0_dblpressed(void);
 BOOL button1_dblpressed(void);
 

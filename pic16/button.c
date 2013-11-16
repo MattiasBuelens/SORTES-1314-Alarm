@@ -13,10 +13,10 @@ void button_init(void) {
 	BUTTON1_TRIS = 1; //configure button1 as input
 }
 
-BOOL button0_pressed() {
+BOOL button0_down() {
 	return BUTTON0_IO == 0u;
 }
 
-BOOL button1_pressed() {
+BOOL button1_down() {
 	return BUTTON1_IO == 0u;
 }

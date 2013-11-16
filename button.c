@@ -6,12 +6,36 @@
 #include "platform/button.h"
 #include "button.h"
 
+BOOL button0_pressed(void) {
+	static BOOL wasPressed = FALSE;
+	if (button0_down()) {
+		wasPressed = TRUE;
+		return FALSE;
+	} else if (wasPressed) {
+		wasPressed = FALSE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+BOOL button1_pressed(void) {
+	static BOOL wasPressed = FALSE;
+	if (button1_down()) {
+		wasPressed = TRUE;
+		return FALSE;
+	} else if (wasPressed) {
+		wasPressed = FALSE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
 BOOL button0_dblpressed(void) {
 	static long lastTimePressed = -1;
 	long currentTime, timeBetweenPress;
 	static BOOL wasPressed = FALSE;
 
-	if (!button0_pressed()) {
+	if (!button0_down()) {
 		return FALSE;
 	}
 	currentTime = uptime_in_seconds();
@@ -26,7 +50,7 @@ BOOL button0_dblpressed(void) {
 		lastTimePressed = currentTime;
 		return TRUE;
 	}
-	wasPressed = button0_pressed();
+	wasPressed = button0_down();
 	return FALSE;
 }
 
@@ -35,7 +59,7 @@ BOOL button1_dblpressed(void) {
 	long currentTime, timeBetweenPress;
 	static BOOL wasPressed = FALSE;
 
-	if (!button1_pressed()) {
+	if (!button1_down()) {
 		return FALSE;
 	}
 	currentTime = uptime_in_seconds();
@@ -50,6 +74,6 @@ BOOL button1_dblpressed(void) {
 		lastTimePressed = currentTime;
 		return TRUE;
 	}
-	wasPressed = button1_pressed();
+	wasPressed = button1_down();
 	return FALSE;
 }
