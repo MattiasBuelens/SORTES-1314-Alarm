@@ -53,25 +53,7 @@ void time_clear(struct time *ptime) {
 	ptime->seconds = 0;
 }
 
-char* write_padded_number(char* s, BYTE number) {
-	*s = (number / 10) + '0';
-	s++;
-	*s = (number % 10) + '0';
-	s++;
-	return s;
-}
-
-char* write_colon(char* s) {
-	*s = ':';
-	s++;
-	return s;
-}
-
 void time_to_string(struct time *ptime, char* buffer) {
-	char *s = buffer;
-	s = write_padded_number(s, ptime->hours);
-	s = write_colon(s);
-	s = write_padded_number(s, ptime->minutes);
-	s = write_colon(s);
-	s = write_padded_number(s, ptime->seconds);
+	sprintf(buffer, "%02d:%02d:%02d", ptime->hours, ptime->minutes,
+			ptime->hours);
 }
