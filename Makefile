@@ -33,7 +33,7 @@ APP_HEADERS=Include/GenericTypeDefs.h \
    Include/Compiler.h \
    Include/HardwareProfile.h 
 
-alarm : Objects/alarm.o $(OBJECTS)
+alarm : $(OBJECTS) Objects/alarm.o
 	$(LD) $(LDFLAGS) Objects/alarm.o $(OBJECTS)
 
 Objects/alarm.o : alarm.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
