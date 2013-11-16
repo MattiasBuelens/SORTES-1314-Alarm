@@ -36,11 +36,10 @@ void set_alarm_time();
 enum set_time_state {
 	hours, minutes, seconds
 };
-enum set_time_state current_set_time_state = hours;
-void set_time_run_loop(struct time *ptime);
+void set_time_run_loop(BYTE column, struct time *ptime);
 
 // Display
-void display_time(struct time *ptime);
+void display_time(BYTE line, BYTE column, struct time *ptime);
 
 // Alarm
 #define ALARM_DURATION 30
@@ -62,6 +61,7 @@ void main(void) {
 	// Initialize I/O
 	button_init();
 	led_init();
+	display_init();
 
 	// Set clock and alarm
 	set_clock_time();
@@ -126,30 +126,31 @@ void alarm_run_tick() {
 /*
  * Time display
  */
-void display_time(struct time * ptime) {
+void display_time(BYTE line, BYTE column, struct time * ptime) {
 	char buffer[TIME_STRING_SIZE] = { 0 };
 	time_to_string(ptime, buffer);
-	display_string(0, 0, buffer);
+	display_string(line, column, buffer);
 }
 
 /**
  * Show clock mode.
  */
 void show_clock() {
+	display_clear();
 	while (TRUE) {
 		current_mode = mode_show_clock;
 
 		// Display clock time
-		display_time(&clock_time);
+		display_time(0, 0, &clock_time);
 
 		// Set clock on button0 double-press
 		if (button0_dblpressed()) {
-			set_time_run_loop(&clock_time);
+			set_clock_time();
 		}
 
 		// Set alarm on button0 double-press
 		if (button1_dblpressed()) {
-			set_time_run_loop(&alarm_time);
+			set_alarm_time();
 		}
 	}
 }
@@ -162,7 +163,10 @@ void set_clock_time() {
 	// Stop alarm
 	alarm_stop();
 	// Set time
-	set_time_run_loop(&clock_time);
+	display_clear();
+	display_string(0, 0, "Clock: ");
+	set_time_run_loop(7, &clock_time);
+	display_clear();
 }
 
 /**
@@ -173,17 +177,23 @@ void set_alarm_time() {
 	// Stop alarm
 	alarm_stop();
 	// Set time
-	set_time_run_loop(&alarm_time);
+	display_clear();
+	display_string(0, 0, "Alarm: ");
+	set_time_run_loop(7, &alarm_time);
+	display_clear();
 }
 
-void set_time_run_loop(struct time *ptime) {
+void set_time_run_loop(BYTE column, struct time *ptime) {
+	enum set_time_state state = hours;
+	BYTE arrow_column = column;
 	while (TRUE) {
 		// Display current time
-		display_time(ptime);
-
+		display_time(0, column, ptime);
+		// Draw arrow
+		display_string(1, arrow_column, "^^");
 		if (button0_pressed()) {
 			// Increment value
-			switch (current_set_time_state) {
+			switch (state) {
 			case hours:
 				time_cycle_hours(ptime);
 				break;
@@ -192,17 +202,20 @@ void set_time_run_loop(struct time *ptime) {
 				break;
 			case seconds:
 				time_cycle_seconds(ptime);
-				return;
+				break;
 			}
 		}
 		if (button1_pressed()) {
+			// Move arrow
+			display_string(1, arrow_column, "  ");
+			arrow_column += 3; // 2 digits, 1 colon
 			// Next state
-			switch (current_set_time_state) {
+			switch (state) {
 			case hours:
-				current_set_time_state = minutes;
+				state = minutes;
 				break;
 			case minutes:
-				current_set_time_state = seconds;
+				state = seconds;
 				break;
 			case seconds:
 				// Return to caller
