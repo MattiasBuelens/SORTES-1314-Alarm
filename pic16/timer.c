@@ -29,8 +29,12 @@ void timer_init(void) {
 	INTCONbits.TMR0IE = 1;		// enable external interrupt procedure
 }
 
+static int getTimerInterrupted() {
+	return INTCONbits.TMR0IF == 1;
+}
+
 void timer_handle_interrupt(void) {
-	if (INTCONbits.TMR0IF == 1) {		// timer0 overflowed
+	if (getTimerInterrupted()) {		// timer0 overflowed
 		if (timer_handler) {
 			timer_handler();			// call handler
 		}
@@ -101,4 +105,8 @@ void timer_set_overflows(WORD nb_overflows) {
 	TMR0L = LOW(nb_remaining);
 	// Store value for repeating timers
 	timer_overflows = nb_overflows;
+}
+
+unsigned short timer_get_low(){
+	return *(unsigned short *)(&TMR0L);
 }
