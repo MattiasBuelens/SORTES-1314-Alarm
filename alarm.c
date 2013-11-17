@@ -64,6 +64,7 @@ void main(void) {
 	button_init();
 	led_init();
 	display_init();
+	led_set_all(FALSE);
 
 	// Set clock and alarm
 	set_clock_time();
