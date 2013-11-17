@@ -1,3 +1,9 @@
+/*
+ * alarm.c
+ *
+ * Main program
+ */
+
 #define __SDCC__
 #define THIS_INCLUDES_THE_MAIN_FUNCTION
 

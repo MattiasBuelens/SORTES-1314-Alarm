@@ -6,6 +6,8 @@
 #define __SDCC__
 #include "../Include/HardwareProfile.h"
 
+#include "../platform/led.h"
+
 void led_init(void) {
 	LED0_TRIS = 0; //configure 1st led pin as output (yellow)
 	LED1_TRIS = 0; //configure 2nd led pin as output (red)
