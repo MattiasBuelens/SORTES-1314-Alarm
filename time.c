@@ -56,5 +56,5 @@ void time_clear(struct time *ptime) {
 
 void time_to_string(struct time *ptime, char* buffer) {
 	sprintf(buffer, "%02d:%02d:%02d", ptime->hours, ptime->minutes,
-			ptime->hours);
+			ptime->seconds);
 }
