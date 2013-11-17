@@ -62,5 +62,5 @@ Objects/Tick.o : TCPIP_Stack/Tick.c  $(SDCC_HEADERS)  \
               -L$(LIB)/pic16  TCPIP_Stack/Tick.c
 
 clean : 
-	$(RM) -rf *.o *.hex *.cod *.lst
+	$(RM) -rf *.hex *.cod *.lst Objects/*.o Objects/*.asm Objects/*.lst 
 
