@@ -77,8 +77,8 @@ void interruptServiceRoutine (void)
 			// Print the result
 
 			char str[33];
-			sprintf(str, "Ticks per sec:  %lu", ticks);
-			LCDDisplay(str, 0);
+			sprintf(str, "Ticks / sec:  %lu", ticks);
+			display_string(0,0,str);
 
 		}
 
