@@ -10,6 +10,7 @@
 #include "platform/button.h"
 #include "platform/display.h"
 #include "platform/led.h"
+#include "platform/timer.h"
 
 #include "button.c"
 #include "time.c"
@@ -17,9 +18,14 @@
 #define LOW(a)     (a & 0xFF)
 #define HIGH(a)    ((a>>8) & 0xFF)
 
-// Times
+// Time
 struct time clock_time = { 0, 0, 0 };
 struct time alarm_time = { 7, 0, 0 };
+
+// Timer
+#define TIMER_SCALE 128
+#define TIMER_OVERFLOWS 39062
+void handle_half_second(void);
 
 // Seconds remaining until alarm stops
 // <= 0 : alarm stopped
@@ -44,22 +50,28 @@ void set_time_run_loop(BYTE column, struct time *ptime);
 void display_time(BYTE line, BYTE column, struct time *ptime);
 
 // Alarm
-#define ALARM_DURATION 30
-void alarm_start();
+#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();
 void alarm_stop();
 BOOL alarm_is_running();
 void alarm_run_tick();
 
 long uptime = 0;
 long uptime_in_seconds(void) {
-	// TODO Implement using timer?
-	return 0l;
+	return uptime;
 }
 
 /**
  * Main routine.
  */
 void main(void) {
+	// Initialize timer
+	timer_init();
+	timer_set_handler(&handle_half_second);
+	timer_set_prescaler(TIMER_SCALE);
+	timer_set_overflows(TIMER_OVERFLOWS);
+	timer_set_repeating(TRUE);
+	timer_set_enabled(TRUE);
+
 	// Initialize I/O
 	button_init();
 	led_init();
@@ -75,9 +87,18 @@ void main(void) {
 }
 
 /**
+ * High-priority interrupt routine.
+ */
+void high_isr(void)
+__interrupt (1) {
+	// Handle timer interrupts
+	timer_handle_interrupt();
+}
+
+/**
  * Timer interrupt handler.
  */
-void timer_handle_half_second() {
+void handle_half_second() {
 	static BOOL at_second = FALSE;
 
 	if (at_second) {
@@ -90,6 +111,7 @@ void timer_handle_half_second() {
 
 	// Tick alarm
 	alarm_run_tick();
+
 	if (current_mode == mode_show_clock) {
 		// Start alarm
 		if (time_equals(&clock_time, &alarm_time)) {

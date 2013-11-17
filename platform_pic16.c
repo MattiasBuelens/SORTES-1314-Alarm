@@ -12,3 +12,4 @@
 #include "pic16/button.c"
 #include "pic16/display.c"
 #include "pic16/led.c"
+#include "pic16/timer.c"
