@@ -1,6 +1,3 @@
-#define PLATFORM_PIC
-//#define PLATFORM_WIN32
-
 #define __SDCC__
 #define THIS_INCLUDES_THE_MAIN_FUNCTION
 
@@ -8,7 +5,6 @@
 #include "platform/display.h"
 #include "platform/led.h"
 
-#include "platform.c"
 #include "button.c"
 #include "time.c"
 

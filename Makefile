@@ -33,12 +33,23 @@ APP_HEADERS=Include/GenericTypeDefs.h \
    Include/Compiler.h \
    Include/HardwareProfile.h 
 
-alarm : $(OBJECTS) Objects/alarm.o
-	$(LD) $(LDFLAGS) Objects/alarm.o $(OBJECTS)
+pic16 : $(OBJECTS) Objects/platform_pic16.o Objects/alarm.o
+	$(LD) $(LDFLAGS) Objects/alarm.o $(OBJECTS) Objects/platform_pic16.o
+
+win32 : $(OBJECTS) Objects/platform_win32.o Objects/alarm.o
+	$(LD) $(LDFLAGS) Objects/alarm.o $(OBJECTS) Objects/platform_win32.o
 
 Objects/alarm.o : alarm.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
    $(APP_HEADERS) $(TCPIP_HEADERS)
 	$(CC) $(CFLAGS) alarm.c
+
+Objects/platform_pic16.o : platform_pic16.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
+   $(APP_HEADERS) $(TCPIP_HEADERS)
+	$(CC) $(CFLAGS) platform_pic16.c
+
+Objects/platform_win32.o : platform_win32.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
+   $(APP_HEADERS) $(TCPIP_HEADERS)
+	$(CC) $(CFLAGS) platform_win32.c
 
 Objects/LCDBlocking.o : TCPIP_Stack/LCDBlocking.c $(SDCC_HEADERS)  \
    $(SDCC_PIC16_HEADERS) $(APP_HEADERS) $(TCPIP_HEADERS)
@@ -51,5 +62,5 @@ Objects/Tick.o : TCPIP_Stack/Tick.c  $(SDCC_HEADERS)  \
               -L$(LIB)/pic16  TCPIP_Stack/Tick.c
 
 clean : 
-	$(RM) $(OBJECTS)
+	$(RM) -rf *.o *.hex *.cod *.lst
 

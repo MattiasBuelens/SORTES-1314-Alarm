@@ -4,6 +4,7 @@
 
 #include "Include/GenericTypeDefs.h"
 
+#include <stdio.h>
 #include "time.h"
 
 BOOL time_equals(struct time *ptime1, struct time *ptime2) {
