@@ -24,7 +24,7 @@ void timer_init(void) {
 	timer_set_enabled(FALSE);	// disable timer0
 	T0CONbits.T08BIT = 0;		// use timer0 16-bit counter
 	T0CONbits.T0CS = 0;			// use timer0 instruction cycle clock
-	timer_set_prescaler(1);		// disable prescaler
+	timer_set_scale(1);			// disable prescaler
 
 	INTCONbits.TMR0IE = 1;		// enable external interrupt procedure
 }
@@ -50,7 +50,7 @@ void timer_reset(void) {
 }
 
 void timer_restart(void) {
-	timer_set_overflows(timer_overflows);		// reset timeout
+	timer_set_overflows(timer_overflows);	// reset timeout
 }
 
 BOOL timer_is_enabled(void) {
@@ -73,7 +73,7 @@ void timer_set_handler(TIMER_HANDLER handler) {
 	timer_handler = handler;
 }
 
-void timer_set_prescaler(WORD scale) {
+void timer_set_scale(WORD scale) {
 	if (scale == 1u) {
 		// Disable timer0 prescaler
 		T0CONbits.PSA = 1;

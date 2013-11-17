@@ -14,28 +14,26 @@ void led_init(void) {
 	LED2_TRIS = 0; //configure 3rd led pin as output (red)
 }
 
-BOOL led_get(int ledId) {
-	switch (ledId) {
-	case 0:
+BOOL led_get(enum led_e led) {
+	switch (led) {
+	case LED0:
 		return LED0_IO != 0u;
-	case 1:
+	case LED1:
 		return LED1_IO != 0u;
-	case 2:
+	case LED2:
 		return LED2_IO != 0u;
-	default:
-		return FALSE;
 	}
 }
 
-void led_set(int ledId, BOOL state) {
-	switch (ledId) {
-	case 0:
+void led_set(enum led_e led, BOOL state) {
+	switch (led) {
+	case LED0:
 		LED0_IO = (state ? 1u : 0u);
 		break;
-	case 1:
+	case LED1:
 		LED1_IO = (state ? 1u : 0u);
 		break;
-	case 2:
+	case LED2:
 		LED2_IO = (state ? 1u : 0u);
 		break;
 	}
@@ -45,15 +43,15 @@ void led_set_all(BOOL state) {
 	LED0_IO = LED1_IO = LED2_IO = (state ? 1u : 0u);
 }
 
-void led_toggle(int ledId) {
-	switch (ledId) {
-	case 0:
+void led_toggle(enum led_e led) {
+	switch (led) {
+	case LED0:
 		LED0_IO ^= 1;
 		break;
-	case 1:
+	case LED1:
 		LED1_IO ^= 1;
 		break;
-	case 2:
+	case LED2:
 		LED2_IO ^= 1;
 		break;
 	}

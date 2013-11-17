@@ -7,11 +7,15 @@
 
 #include "../Include/GenericTypeDefs.h"
 
+enum led_e {
+	LED0, LED1, LED2
+};
+
 void led_init(void);
-BOOL led_get(int ledId);
-void led_set(int ledId, BOOL state);
+BOOL led_get(enum led_e led);
+void led_set(enum led_e led, BOOL state);
 void led_set_all(BOOL state);
-void led_toggle(int ledId);
+void led_toggle(enum led_e led);
 void led_toggle_all();
 
 #endif /* PLATFORM_LED_H_ */
