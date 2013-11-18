@@ -49,10 +49,10 @@ unsigned long ticks = 0;
 
 void setupTimers(void);
 
-void interruptServiceRoutine (void)
+void interruptServiceRoutine (void)__interrupt (1)
 {
 	//button is pressed run experiment again.
-	if(INTCON3bits.INT1F  = 1){
+	if(INTCON3bits.INT1F  == 1){
 		ticks = 0
 		setupTimers();
 		// Start timer1...

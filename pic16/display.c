@@ -9,6 +9,8 @@
 
 #include "../platform/display.h"
 
+BOOL displayChanged = FALSE;
+
 void display_init(void) {
 	LCDInit();
 }
@@ -20,7 +22,7 @@ BYTE display_get_position(BYTE line, BYTE column) {
 void display_char(BYTE line, BYTE column, char c) {
 	BYTE pos = display_get_position(line, column);
 	LCDText[pos] = c;
-	LCDUpdate();
+	displayChanged = TRUE;
 }
 
 void display_string(BYTE line, BYTE column, const char* text) {
@@ -35,9 +37,19 @@ void display_string(BYTE line, BYTE column, const char* text) {
 		while (n-- != 0)
 			*d++ = *s++;
 	}
-	LCDUpdate();
+	displayChanged = TRUE;
 }
 
 void display_clear() {
 	LCDErase();
 }
+
+void display_update(){
+	displayChanged ^=1;
+	LCDUpdate();
+}
+
+BOOL display_changed(){
+	return displayChanged;
+}
+

@@ -22,6 +22,9 @@
 struct time clock_time = { 0, 0, 0 };
 struct time alarm_time = { 7, 0, 0 };
 
+struct time current_set_time = NULL;
+static enum set_time_state state = hours;
+
 // Timer
 #define TIMER_SCALE 128
 #define TIMER_OVERFLOWS 39062
@@ -32,9 +35,9 @@ void handle_half_second(void);
 int alarm_remaining;
 
 // Program mode
-enum mode {
-	mode_show_clock, mode_set_clock_time, mode_set_alarm_time
-};
+//enum mode {
+//	mode_show_clock, mode_set_clock_time, mode_set_alarm_time
+//};
 enum mode current_mode;
 void show_clock();
 void set_clock_time();
@@ -55,6 +58,11 @@ void alarm_stop();
 BOOL alarm_is_running();
 void alarm_run_tick();
 
+//Buttons
+void handle_button0_during(void);
+void handle_button0_initiate(void);
+void handle_button1_initiate(void);
+
 long uptime = 0;
 long uptime_in_seconds(void) {
 	return uptime;
@@ -74,6 +82,8 @@ void main(void) {
 
 	// Initialize I/O
 	button_init();
+	button_set_handler(0, &handle_button1_initiate);
+	button_set_handler(1, &handle_button1_initiate);
 	led_init();
 	display_init();
 	led_set_all(FALSE);
@@ -94,6 +104,85 @@ __interrupt (1) {
 	// Handle timer interrupts
 	timer_handle_interrupt();
 }
+/*
+ * Low-priority interrupt routine
+ * uncomment for setting it as the low interrupt
+ *
+ * @TODO move platform spefic part to button,
+ * probably need handler for both buttons
+ */
+void low_isr(void){ //__interrupt (2)
+	button_handle_intterupt();
+
+
+}
+
+void handle_button0_initiate(){
+	if (button0_dblpressed()) {
+		set_clock_time();
+		button_set_handler(&handle_button0_during());
+	}
+}
+
+void handle_button1_initiate(){
+	if (button1_dblpressed()) {
+		set_alarm_time();
+		button_set_handler(&handle_button0_during());
+	}
+}
+//This switch case could be removed as well by splitting in 3 functions
+void handle_button0_during(){
+	if(current_set_time){
+		if(button0_pressed()){
+			display_time(1,8,current_set_time); //Display where it changes
+			switch (state) {
+			case hours:
+				time_cycle_hours(current_set_time);
+				break;
+			case minutes:
+				time_cycle_minutes(current_set_time);
+				break;
+			case seconds:
+				time_cycle_seconds(current_set_time);
+				break;
+			}
+
+			//TRY TO CLEANUP THE LINE NUMBER/colum,...
+			//fix it to be after previous?
+			//add parameter determining to clear current display or to continue...
+		}
+	}
+}
+
+void handle_button1_during(){
+	if(current_set_time){
+		static BYTE arrow_column = 8;
+		if(button1_pressed()){
+			display_string(0, arrow_column, "  ");
+			arrow_column +=3;
+			switch (state) {
+			case hours:
+				state = minutes;
+				break;
+			case minutes:
+				state = seconds;
+				break;
+			case seconds:
+				arrow_column = 8;
+				button_set_handler(0,&handle_button0_initiate);
+				button_set_handler(0,&handle_button1_initiate);
+				current_set_time = NULL;
+				// Return to caller
+				return;
+			}
+
+			//TRY TO CLEANUP THE LINE NUMBER/colum,...
+			//fix it to be after previous? Seems complex...
+			//add parameter determining to clear current display or to continue...
+		}
+	}
+}
+
 
 /**
  * Timer interrupt handler.
@@ -104,7 +193,7 @@ void handle_half_second() {
 	if (at_second) {
 		// Next second
 		uptime++;
-		if (current_mode != mode_set_clock_time) {
+		if (!time_equals(current_set_time,clock_time)) {
 			time_increment(&clock_time);
 		}
 	}
@@ -112,7 +201,7 @@ void handle_half_second() {
 	// Tick alarm
 	alarm_run_tick();
 
-	if (current_mode == mode_show_clock) {
+	if (!current_set_time) {
 		// Start alarm
 		if (time_equals(&clock_time, &alarm_time)) {
 			alarm_start();
@@ -161,53 +250,59 @@ void display_time(BYTE line, BYTE column, struct time * ptime) {
  * Show clock mode.
  */
 void show_clock() {
-	display_clear();
 	while (TRUE) {
-		current_mode = mode_show_clock;
+		if(display_changed()){
+			display_update();
 
-		// Display clock time
-		display_time(0, 0, &clock_time);
-
-		// Set clock on button0 double-press
-		if (button0_dblpressed()) {
-			set_clock_time();
+		}
+		// reduce number of calls to update!
+		if(clock_time_changed()){
+			// Display clock time
+			display_time(0, 0, &clock_time);
 		}
 
-		// Set alarm on button0 double-press
-		if (button1_dblpressed()) {
-			set_alarm_time();
-		}
+
 	}
 }
 
+BOOL clock_time_changed(){
+	static long lastUpTime = uptime;
+	if(lastUpTime != uptime){
+		lastUpTime = uptime;
+		return TRUE;
+	}
+	return FALSE;
+}
 /**
  * Set clock time mode.
+ * Enige verschil is de string en welke clock-time SAMENVOEGEN TODO
  */
 void set_clock_time() {
-	current_mode = mode_set_clock_time;
+	current_set_time = clock_time;
 	// Stop alarm
 	alarm_stop();
 	// Set time
-	display_clear();
-	display_string(0, 0, "Clock: ");
-	set_time_run_loop(7, &clock_time);
-	display_clear();
+	display_string(1, 0, "Clock: ");
+	display_string(0, 8, "VV");
+
+
 }
 
 /**
  * Set alarm time mode.
  */
 void set_alarm_time() {
-	current_mode = mode_set_alarm_time;
+	current_set_time = alarm_time;
 	// Stop alarm
 	alarm_stop();
 	// Set time
-	display_clear();
-	display_string(0, 0, "Alarm: ");
-	set_time_run_loop(7, &alarm_time);
-	display_clear();
-}
+	display_string(1, 0, "Alarm: ");
+	display_string(0, 8, "VV");
 
+}
+/*
+ * change loop to using iterrupts
+ */
 void set_time_run_loop(BYTE column, struct time *ptime) {
 	enum set_time_state state = hours;
 	BYTE arrow_column = column;
