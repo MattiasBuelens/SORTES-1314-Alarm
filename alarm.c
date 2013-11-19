@@ -49,13 +49,7 @@ void set_time_run_loop(BYTE column, struct time *ptime);
 void display_time(BYTE line, BYTE column, struct time *ptime);
 
 // Alarm
-#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();void alarm_stop();BOOL alarm_is_running();
-void alarm_run_tick();
-
-long uptime = 0;
-long uptime_in_seconds(void) {
-	return uptime;
-}
+#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();void alarm_stop();BOOL alarm_is_running();void alarm_run_tick();
 
 /**
  * Main routine.
@@ -99,7 +93,6 @@ void handle_half_second() {
 
 	if (at_second) {
 		// Next second
-		uptime++;
 		if (current_mode != mode_set_clock_time) {
 			time_increment(&clock_time);
 		}
@@ -161,16 +154,19 @@ void show_clock() {
 	while (TRUE) {
 		current_mode = mode_show_clock;
 
-		// Display clock time
-		display_time(0, 0, &clock_time);
+		// Display clock and alarm time
+		display_string(0, 0, "Clock: ");
+		display_time(0, 7, &clock_time);
+		display_string(1, 0, "Alarm: ");
+		display_time(1, 7, &alarm_time);
 
-		// Set clock on button0 double-press
-		if (button0_dblpressed()) {
+		// Set clock on button0 press
+		if (button0_pressed()) {
 			set_clock_time();
 		}
 
-		// Set alarm on button0 double-press
-		if (button1_dblpressed()) {
+		// Set alarm on button1 press
+		if (button1_pressed()) {
 			set_alarm_time();
 		}
 	}

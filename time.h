@@ -13,8 +13,6 @@ struct time {
 	BYTE seconds;
 };
 
-long uptime_in_seconds(void);
-
 BOOL time_equals(struct time *ptime1, struct time *ptime2);
 long time_in_seconds(struct time *ptime);
 
