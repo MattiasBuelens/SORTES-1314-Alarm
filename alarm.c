@@ -50,7 +50,6 @@ void display_time(BYTE line, BYTE column, struct time *ptime);
 
 // Alarm
 #define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();void alarm_stop();BOOL alarm_is_running();void alarm_run_tick();
-
 /**
  * Main routine.
  */
@@ -83,6 +82,15 @@ void high_isr(void)
 __interrupt (1) {
 	// Handle timer interrupts
 	timer_handle_interrupt();
+}
+
+/**
+ * Low-priority interrupt routine.
+ */
+void low_isr(void)
+__interrupt (2) {
+	// Handle button interrupts
+	button_handle_interrupt();
 }
 
 /**
