@@ -50,7 +50,9 @@ void setupTimers(void);
 void displayResult(unsigned long ticks);
 
 void handleInterrupt(void) {
-	BYTE timer0_value = TMR0L;
+	BYTE timer0_low = TMR0L;
+	BYTE timer0_high = TMR0H;
+	WORD timer0_value;
 
 	// Button2 is pressed, run experiment again
 	if (INTCON3bits.INT1F == 1) {
@@ -73,7 +75,8 @@ void handleInterrupt(void) {
 		// If timer0 gets disabled, we have a result and need to display it
 		if (T0CONbits.TMR0ON == 0) {
 			T1CONbits.TMR1ON = 0; //disable timer 1 as well.
-			ticks += (BYTE) timer0_value;
+			timer0_value = (timer0_high << 8) | timer0_low;
+			ticks += timer0_value;
 			ticks /= 2;
 			// Print the result
 			displayResult(ticks);
@@ -84,7 +87,7 @@ void handleInterrupt(void) {
 
 	// Timer0 triggered an overflow, increase ticks
 	if (INTCONbits.TMR0IF == 1) {
-		ticks += 256;
+		ticks += 0x10000; // 16-bits
 		// Clear interrupt flag
 		INTCONbits.TMR0IF = 0;
 	}
@@ -113,8 +116,8 @@ void setupTimers() {
 	// Reset timer value (first high word, then low word)
 	TMR0H = 0x00000000;
 	TMR0L = 0x00000000;
-	// Use 8-bit timer
-	T0CONbits.T08BIT = 1;
+	// Use 16-bit timer
+	T0CONbits.T08BIT = 0;
 	// Use internal instruction cycle clock
 	T0CONbits.T0CS = 0;
 	// Don't use the prescaler

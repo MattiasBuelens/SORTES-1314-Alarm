@@ -22,6 +22,8 @@ BOOL led_get(enum led_e led) {
 		return LED1_IO != 0u;
 	case LED2:
 		return LED2_IO != 0u;
+	default:
+		return FALSE;
 	}
 }
 

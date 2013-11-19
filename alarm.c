@@ -24,7 +24,7 @@ struct time alarm_time = { 7, 0, 0 };
 
 // Timer
 #define TIMER_SCALE 128
-#define TIMER_OVERFLOWS 39062
+#define TIMER_OVERFLOWS 24411
 void handle_half_second(void);
 
 // Seconds remaining until alarm stops
