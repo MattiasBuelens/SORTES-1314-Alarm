@@ -92,7 +92,8 @@ void timer_set_interrupt_time(WORD milliseconds){
 		scale <<=1;
 	}
 	timer_set_scale(scale);
-	timer_set_overflows(nb_overflows); // do something smart with remainder
+	timer_set_overflows(nb_overflows);
+	// do something smart with remainder
 	// if remainder > 0.5 round up else round down:
 	// every 1/remainder time nb_overflows + 1 (if <=0.5) corrects to fast
 	// every 1/(1-remainder) time nb_overflows -1 (if>0.5) corrects to slow

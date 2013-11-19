@@ -17,7 +17,7 @@
 
 #define LOW(a)     (a & 0xFF)
 #define HIGH(a)    ((a>>8) & 0xFF)
-
+#define LED_TIME 500
 // Time
 struct time clock_time = { 0, 0, 0 };
 struct time alarm_time = { 7, 0, 0 };
@@ -25,6 +25,9 @@ struct time alarm_time = { 7, 0, 0 };
 // Timer
 #define TIMER_SCALE 128
 #define TIMER_OVERFLOWS 24411
+#define SMALLEST_TIME_MEASURE 500
+#define BIGGEST_TIME_MEASURE 1000
+
 void handle_half_second(void);
 
 // Seconds remaining until alarm stops
@@ -49,16 +52,12 @@ void set_time_run_loop(BYTE column, struct time *ptime);
 // Display
 void display_time(BYTE line, BYTE column, struct time *ptime);
 
-// Alarm
-#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();
+// Alarm/
+#define ALARM_DURATION 30void alarm_start();
 void alarm_stop();
 BOOL alarm_is_running();
 void alarm_run_tick();
 
-long uptime = 0;
-long uptime_in_seconds(void) {
-	return uptime;
-}
 
 /**
  * Main routine.
@@ -69,7 +68,7 @@ void main(void) {
 	timer_set_handler(&handle_half_second);
 	//timer_set_scale(TIMER_SCALE);
 	//timer_set_overflows(TIMER_OVERFLOWS);
-	timer_set_interrupt_time(500);
+	timer_set_interrupt_time(SMALLEST_TIME_MEASURE);
 	timer_restart();
 	timer_set_repeating(TRUE);
 	timer_set_enabled(TRUE);
@@ -99,29 +98,31 @@ __interrupt (1) {
 
 /**
  * Timer interrupt handler.
+ * MAX time measure should be 1000ms
  */
 void handle_half_second() {
-	static BOOL at_second = FALSE;
-
-	if (at_second) {
-		// Next second
-		uptime++;
+	static WORD passed =0;
+	passed += SMALLEST_TIME_MEASURE;
+	if (passed >= 1000) {
 		if (current_mode != mode_set_clock_time) {
 			time_increment(&clock_time);
+			if(alarm_is_running()){
+				alarm_run_tick();
+			}
+			if (time_equals(&clock_time, &alarm_time)) {
+				alarm_start();
+			}
 		}
 	}
 
 	// Tick alarm
-	alarm_run_tick();
-
-	if (current_mode == mode_show_clock) {
-		// Start alarm
-		if (time_equals(&clock_time, &alarm_time)) {
-			alarm_start();
-		}
+	if (passed >= LED_TIME) {
+		led_toggle(0);
+	}
+	if(passed>= BIGGEST_TIME_MEASURE){
+		passed -= BIGGEST_TIME_MEASURE;
 	}
 
-	at_second = !at_second;
 }
 
 /*
@@ -142,12 +143,8 @@ BOOL alarm_is_running() {
 }
 
 void alarm_run_tick() {
-	if (alarm_is_running()) {
-		led_toggle_all();
-		alarm_remaining--;
-	} else {
-		led_set_all(FALSE);
-	}
+	led_toggle_all();
+	alarm_remaining--;
 }
 
 /*
