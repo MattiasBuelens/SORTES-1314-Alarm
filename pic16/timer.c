@@ -15,7 +15,6 @@
 
 BOOL timer_repeating = FALSE;
 DWORD timer_ticks = 0;
-DWORD timer_remaining_ticks = 0;
 TIMER_HANDLER timer_handler = NULL;
 
 void timer_set_scale(DWORD scale);
@@ -41,16 +40,9 @@ BOOL timer_is_interrupted() {
 
 void timer_handle_interrupt(void) {
 	if (timer_is_interrupted()) {		// timer0 overflowed
-		if (timer_remaining_ticks > 0) {
-			// Remaining ticks left, continue timer
-			timer_set_ticks(timer_remaining_ticks);
-			timer_reset();
-			return;
-		}
 		if (timer_is_repeating()) {
 			// Repeating, restart timer
 			timer_restart();
-			timer_set_enabled(TRUE);
 		} else {
 			// Non-repeating, disable timer
 			timer_set_enabled(FALSE);
@@ -93,33 +85,29 @@ void timer_set_handler(TIMER_HANDLER handler) {
 void timer_set_timeout(WORD milliseconds) {
 	// Determine tick amount for interrupt
 	DWORD nb_ticks = ((DWORD) milliseconds) * TIMER_CYCLES_PER_SECOND / 1000;
+	// Determine scale to make the amount fit in 16 bits
+	// but without exceeding the prescaler range
+	DWORD scale = 1;
 	// Store amount for restarting timers
 	timer_ticks = nb_ticks;
+	while (nb_ticks >= 0x10000 && scale < 256) {
+		nb_ticks >>= 1;
+		scale <<= 1;
+	}
+	if (nb_ticks >= 0x10000) {
+		// Too large for one single overflow
+		nb_ticks = 0x10000;
+		scale = 256;
+	}
+	// Set scale
+	timer_set_scale(scale);
 	// Configure timer
 	timer_set_ticks(nb_ticks);
 }
 
 void timer_set_ticks(DWORD nb_ticks) {
-	// Determine scale to make the amount fit in 16 bits
-	// but without exceeding the prescaler range
-	DWORD nb_current_ticks = nb_ticks, scale = 1;
-	WORD timer_value;
-	while (nb_current_ticks >= 0x10000 && scale < 256) {
-		nb_current_ticks >>= 1;
-		scale <<= 1;
-	}
-	if (nb_current_ticks >= 0x10000) {
-		// Too large for one single overflow
-		// Use (a lot of) timers with maximum span
-		nb_current_ticks = 0x10000;
-		scale = 256;
-	}
-	// Set scale
-	timer_set_scale(scale);
-	// Set remaining ticks
-	timer_remaining_ticks = nb_ticks - (nb_current_ticks * scale);
 	// Set timer value
-	timer_value = 0x10000 - ((WORD) nb_current_ticks);
+	WORD timer_value = 0x10000 - ((WORD) nb_ticks);
 	TMR0H = HIGH(timer_value);
 	TMR0L = LOW(timer_value);
 }
