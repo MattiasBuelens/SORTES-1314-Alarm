@@ -41,13 +41,12 @@ void timer_handle_interrupt(void) {
 		if (timer_is_repeating()) {
 			// Repeating, restart timer
 			timer_restart();
+		} else {
+			// Non-repeating, disable timer
+			timer_set_enabled(FALSE);
 		}
 		if (timer_handler) {
 			timer_handler();			// call handler
-		}
-		else {
-			// Non-repeating, disable timer
-			timer_set_enabled(FALSE);
 		}
 		timer_reset();
 	}
@@ -59,7 +58,7 @@ void timer_reset(void) {
 
 void timer_restart(void) {
 	TMR0H = HIGH(nb_remaining);
-	TMR0L = LOW(nb_remaining);// reset timeout
+	TMR0L = LOW(nb_remaining);					// reset timeout
 }
 
 BOOL timer_is_enabled(void) {
@@ -82,14 +81,14 @@ void timer_set_handler(TIMER_HANDLER handler) {
 	timer_handler = handler;
 }
 
-void timer_set_interrupt_time(WORD milliseconds){
+void timer_set_interrupt_time(WORD milliseconds) {
 	//determine counter overflow amount for intterupt
-	WORD nb_overflows = (milliseconds * TIMER_CYCLES_PER_SECOND) /1000;
+	WORD nb_overflows = (milliseconds * TIMER_CYCLES_PER_SECOND) / 1000;
 	//determine prescaler value
 	WORD scale = 1;
-	while(nb_overflows > 2^16){
+	while (nb_overflows > 2 ^ 16) {
 		nb_overflows >>= 2;
-		scale <<=1;
+		scale <<= 1;
 	}
 	timer_set_scale(scale);
 	timer_set_overflows(nb_overflows); // do something smart with remainder
