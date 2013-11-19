@@ -22,7 +22,7 @@
 struct time clock_time = { 0, 0, 0 };
 struct time alarm_time = { 7, 0, 0 };
 
-struct time current_set_time = NULL;
+struct time *current_set_time = NULL;
 static enum set_time_state state = hours;
 
 // Timer
@@ -132,18 +132,18 @@ void handle_button1_initiate(){
 }
 //This switch case could be removed as well by splitting in 3 functions
 void handle_button0_during(){
-	if(current_set_time){
+	if(&current_set_time){
 		if(button0_pressed()){
-			display_time(1,8,current_set_time); //Display where it changes
+			display_time(1,8,&current_set_time); //Display where it changes
 			switch (state) {
 			case hours:
-				time_cycle_hours(current_set_time);
+				time_cycle_hours(&current_set_time);
 				break;
 			case minutes:
-				time_cycle_minutes(current_set_time);
+				time_cycle_minutes(&current_set_time);
 				break;
 			case seconds:
-				time_cycle_seconds(current_set_time);
+				time_cycle_seconds(&current_set_time);
 				break;
 			}
 
@@ -155,7 +155,7 @@ void handle_button0_during(){
 }
 
 void handle_button1_during(){
-	if(current_set_time){
+	if(&current_set_time){
 		static BYTE arrow_column = 8;
 		if(button1_pressed()){
 			display_string(0, arrow_column, "  ");
@@ -193,7 +193,7 @@ void handle_half_second() {
 	if (at_second) {
 		// Next second
 		uptime++;
-		if (!time_equals(current_set_time,clock_time)) {
+		if (!time_equals(&current_set_time,&clock_time)) {
 			time_increment(&clock_time);
 		}
 	}
@@ -201,7 +201,7 @@ void handle_half_second() {
 	// Tick alarm
 	alarm_run_tick();
 
-	if (!current_set_time) {
+	if (! &current_set_time) {
 		// Start alarm
 		if (time_equals(&clock_time, &alarm_time)) {
 			alarm_start();
@@ -278,7 +278,7 @@ BOOL clock_time_changed(){
  * Enige verschil is de string en welke clock-time SAMENVOEGEN TODO
  */
 void set_clock_time() {
-	current_set_time = clock_time;
+	current_set_time = &clock_time;
 	// Stop alarm
 	alarm_stop();
 	// Set time
@@ -292,7 +292,7 @@ void set_clock_time() {
  * Set alarm time mode.
  */
 void set_alarm_time() {
-	current_set_time = alarm_time;
+	current_set_time = &alarm_time;
 	// Stop alarm
 	alarm_stop();
 	// Set time
