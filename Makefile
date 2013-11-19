@@ -33,23 +33,23 @@ APP_HEADERS=Include/GenericTypeDefs.h \
    Include/Compiler.h \
    Include/HardwareProfile.h 
 
-pic16 : $(OBJECTS) Objects/platform_pic16.o Objects/alarm.o
+alarm : $(OBJECTS) Objects/platform_pic16.o Objects/alarm.o
 	$(LD) $(LDFLAGS) Objects/alarm.o $(OBJECTS) Objects/platform_pic16.o
 
-win32 : $(OBJECTS) Objects/platform_win32.o Objects/alarm.o
-	$(LD) $(LDFLAGS) Objects/alarm.o $(OBJECTS) Objects/platform_win32.o
+timertest : $(OBJECTS) Objects/platform_pic16.o Objects/timertest.o
+	$(LD) $(LDFLAGS) Objects/timertest.o $(OBJECTS) Objects/platform_pic16.o
 
 Objects/alarm.o : alarm.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
    $(APP_HEADERS) $(TCPIP_HEADERS)
 	$(CC) $(CFLAGS) alarm.c
 
+Objects/timertest.o : timertest.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
+   $(APP_HEADERS) $(TCPIP_HEADERS)
+	$(CC) $(CFLAGS) timertest.c
+
 Objects/platform_pic16.o : platform_pic16.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
    $(APP_HEADERS) $(TCPIP_HEADERS)
 	$(CC) $(CFLAGS) platform_pic16.c
-
-Objects/platform_win32.o : platform_win32.c $(SDCC_HEADERS) $(SDCC_PIC16_HEADERS) \
-   $(APP_HEADERS) $(TCPIP_HEADERS)
-	$(CC) $(CFLAGS) platform_win32.c
 
 Objects/LCDBlocking.o : TCPIP_Stack/LCDBlocking.c $(SDCC_HEADERS)  \
    $(SDCC_PIC16_HEADERS) $(APP_HEADERS) $(TCPIP_HEADERS)

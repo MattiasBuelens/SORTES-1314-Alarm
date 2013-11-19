@@ -9,7 +9,6 @@
 #define THIS_INCLUDES_THE_MAIN_FUNCTION
 
 #include "Include/HardwareProfile.h"
-#include "Include/LCDBlocking.h"
 #include "Include/TCPIP_Stack/Delay.h"
 
 #include <string.h>
@@ -29,13 +28,13 @@
  *
  * According to the specs found here http://ww1.microchip.com/downloads/en/DeviceDoc/39762f.pdf
  * we can trust TIMER1 to which uses a built-in oscillator to have a 32768Hz clock speed.
- * When using de 16-bit mode we will thus have a 2 second interval before it overflows.
+ * When using the 16-bit mode we will thus have a 2 second interval before it overflows.
  *
  * The strategy consists of running timer1, starting timer0 when timer 1 overflows and
  * counting the number of ticks timer0 encounters between the two overflows of timer 1
  *
  * We know the time between two interrupts of timer 1 and we know timer0 is faster then timer1,
- * at a of suspected 10.5MIPS.
+ * at a suspected rate of 10.5 MIPS.
  * So we can count the number of ticks timer0 does between two timer1 interrupts,
  * adding 256 to our tick count for every time it overflows and adding the remainder after the second interrupt.
  * The sum of ticks and the current timer0 count gives us the number of ticks in 2 sec
@@ -48,45 +47,42 @@
 unsigned long ticks = 0;
 
 void setupTimers(void);
+void displayResult(unsigned long ticks);
 
-void interruptServiceRoutine (void)
-{
-	//button is pressed run experiment again.
-	if(INTCON3bits.INT1F  = 1){
-		ticks = 0
+void handleInterrupt(void) {
+	BYTE timer0_value = TMR0L;
+
+	// Button2 is pressed, run experiment again
+	if (INTCON3bits.INT1F == 1) {
+		ticks = 0;
+		// Start experiment
 		setupTimers();
-		// Start timer1...
 		T1CONbits.TMR1ON = 1;
-		if(BUTTON0_IO);  //just read the bit
-		INTCON3bits.INT1F  = 0;   //clear INT1 flag
-
+		// Read the bit
+		if (BUTTON2_IO)
+			;
+		INTCON3bits.INT1F = 0;	// Clear INT1 flag
 	}
 
-	// timer1 triggered an interrupt
+	// Timer1 triggered an interrupt
 	if (PIR1bits.TMR1IF) {
 		// immediately enable or disable timer0 to start/stop incrementing said timer
 		T0CONbits.TMR0ON ^= 1;
 		led_toggle_all();
 
 		// If timer0 gets disabled, we have a result and need to display it
-		if (!timer_is_enabled()) {
+		if (T0CONbits.TMR0ON == 0) {
 			T1CONbits.TMR1ON = 0; //disable timer 1 as well.
-			unsigned short remainder = timer_get_low();
-			ticks += remainder;
-			ticks /=2;
+			ticks += (BYTE) timer0_value;
+			ticks /= 2;
 			// Print the result
-
-			char str[33];
-			sprintf(str, "Ticks / sec:  %lu", ticks);
-			display_string(0,0,str);
-
+			displayResult(ticks);
 		}
-
 		// Clear interrupt flag
 		PIR1bits.TMR1IF = 0;
 	}
 
-	// timer0 triggered an overflow, increase the count
+	// Timer0 triggered an overflow, increase ticks
 	if (INTCONbits.TMR0IF == 1) {
 		ticks += 256;
 		// Clear interrupt flag
@@ -94,15 +90,30 @@ void interruptServiceRoutine (void)
 	}
 }
 
-void setupTimers() {
+void high_isr(void)
+__interrupt (1) {
+	handleInterrupt();
+}
 
+void displayResult(unsigned long ticks) {
+	char str[17] = { 0 };
+	sprintf(str, "Ticks/s:", ticks);
+	display_string(0, 0, str);
+	sprintf(str, "%lu", ticks);
+	display_string(1, 0, str);
+}
+
+void setupTimers() {
 	//  Disable timer0 and timer1 for setup
-	timer_set_enabled(FALSE);
+	T0CONbits.TMR0ON = 0;
 	T1CONbits.TMR1ON = 0;
-	//reset timer 0 registers
+	/*
+	 * Timer0
+	 */
+	// Reset timer value (first high word, then low word)
 	TMR0H = 0x00000000;
 	TMR0L = 0x00000000;
-	// use 8-bit
+	// Use 8-bit timer
 	T0CONbits.T08BIT = 1;
 	// Use internal instruction cycle clock
 	T0CONbits.T0CS = 0;
@@ -110,11 +121,12 @@ void setupTimers() {
 	T0CONbits.PSA = 1;
 	// Enable interrupts
 	INTCONbits.TMR0IE = 1;
-	// Set up timer1
+	/*
+	 * Timer1
+	 */
 	// Use 16-bit read/write operation
 	T1CONbits.RD16 = 1;
-	// Clear the timer value. One must first set the high byte ,
-	// Only copied when low byte is set, also with timer0
+	// Reset timer value (first high word, then low word)
 	TMR1H = 0x00000000;
 	TMR1L = 0x00000000;
 	// Don't use the prescaler
@@ -128,32 +140,25 @@ void setupTimers() {
 	T1CONbits.TMR1CS = 1;
 	// Enable interrupts
 	PIE1bits.TMR1IE = 1;
-
 }
 
-void main(void)
-{
+void main(void) {
 	RCONbits.IPEN = 1;			// enable interrupts priority levels
 	INTCONbits.GIE = 1;			// enable high priority interrupts
-	//INTCONbits.PEIE = 1; dont know if this is necessarry
+	//INTCONbits.PEIE = 1;		// don't know if this is necessary
 
-    INTCON3bits.INT1P  = 1;   //connect INT1 interrupt (button 2) to high prio
-    INTCON2bits.INTEDG1= 0;   //INT1 interrupts on falling edge
-    INTCON3bits.INT1E  = 1;   //enable INT1 interrupt (button 2)
-    INTCON3bits.INT1F  = 0;   //clear INT1 flag
+	INTCON3bits.INT1P = 1;	// connect INT1 interrupt (button 2) to high prio
+	INTCON2bits.INTEDG1 = 0;	// INT1 interrupts on falling edge
+	INTCON3bits.INT1E = 1;		// enable INT1 interrupt (button 2)
+	INTCON3bits.INT1F = 0;		// clear INT1 flag
 
 	led_init();
+	display_init();
 
+	// Start experiment
 	setupTimers();
-
-	// Configure the LCD display
-	// initialize the display
-	LCDInit()
-	// LCD backlight
-	LED3_TRIS = 0;
-	LED3_IO = 1;
-	// Start timer1...
 	T1CONbits.TMR1ON = 1;
 
-	while(1);
+	while (TRUE)
+		;
 }
