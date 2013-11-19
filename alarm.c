@@ -34,10 +34,13 @@ int alarm_remaining;
 enum mode {
 	mode_show_clock, mode_set_clock_time, mode_set_alarm_time
 };
-enum mode current_mode;
-void show_clock();
-void set_clock_time();
-void set_alarm_time();
+enum mode current_mode = mode_show_clock;
+void *(current_mode_func)(void) = NULL;
+void *(next_mode_func)(void) = NULL;
+
+void show_clock_start();
+void set_clock_time_start();
+void set_alarm_time_start();
 
 // Set time (clock/alarm) mode
 enum set_time_state {
@@ -50,12 +53,11 @@ void display_time(BYTE line, BYTE column, struct time *ptime);
 
 // Alarm
 #define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();void alarm_stop();BOOL alarm_is_running();void alarm_run_tick();
-/**
+/*
  * Main routine.
  */
 void main(void) {
 	// Initialize timer
-	timer_init();
 	timer_set_handler(&handle_half_second);
 	timer_set_repeating(TRUE);
 	timer_set_timeout(TIMER_TIMEOUT);
@@ -68,11 +70,11 @@ void main(void) {
 	led_set_all(FALSE);
 
 	// Set clock and alarm
-	set_clock_time();
-	set_alarm_time();
 
-	// Show clock
-	show_clock();
+
+	while (TRUE) {
+		current_mode_func();
+	}
 }
 
 /**
@@ -157,32 +159,36 @@ void display_time(BYTE line, BYTE column, struct time * ptime) {
 /**
  * Show clock mode.
  */
+void show_clock_start() {
+	current_mode = mode_show_clock;
+	current_mode_func = &show_clock;
+	next_mode_func = NULL;
+	button_set_handler(button0, set_clock_time_start);
+	button_set_handler(button1, set_alarm_time_start);
+}
+
 void show_clock() {
-	display_clear();
-	while (TRUE) {
-		current_mode = mode_show_clock;
-
-		// Display clock and alarm time
-		display_string(0, 0, "Clock: ");
-		display_time(0, 7, &clock_time);
-		display_string(1, 0, "Alarm: ");
-		display_time(1, 7, &alarm_time);
-
-		// Set clock on button0 press
-		if (button0_pressed()) {
-			set_clock_time();
-		}
-
-		// Set alarm on button1 press
-		if (button1_pressed()) {
-			set_alarm_time();
-		}
-	}
+	// Display clock and alarm time
+	display_string(0, 0, "Clock: ");
+	display_time(0, 7, &clock_time);
+	display_string(1, 0, "Alarm: ");
+	display_time(1, 7, &alarm_time);
 }
 
 /**
  * Set clock time mode.
  */
+void set_clock_time_start() {
+	current_mode = mode_set_clock_time;
+	next_mode_func = &show_clock;
+	// Stop alarm
+	alarm_stop();
+	// Set time
+	display_clear();
+	display_string(0, 0, "Clock: ");
+	set_time_start(7, &clock_time);
+}
+
 void set_clock_time() {
 	current_mode = mode_set_clock_time;
 	// Stop alarm
@@ -208,44 +214,54 @@ void set_alarm_time() {
 	display_clear();
 }
 
-void set_time_run_loop(BYTE column, struct time *ptime) {
-	enum set_time_state state = hours;
-	BYTE arrow_column = column;
-	while (TRUE) {
-		// Display current time
-		display_time(0, column, ptime);
-		// Draw arrow
-		display_string(1, arrow_column, "^^");
-		if (button0_pressed()) {
-			// Increment value
-			switch (state) {
-			case hours:
-				time_cycle_hours(ptime);
-				break;
-			case minutes:
-				time_cycle_minutes(ptime);
-				break;
-			case seconds:
-				time_cycle_seconds(ptime);
-				break;
-			}
-		}
-		if (button1_pressed()) {
-			// Move arrow
-			display_string(1, arrow_column, "  ");
-			arrow_column += 3; // 2 digits, 1 colon
-			// Next state
-			switch (state) {
-			case hours:
-				state = minutes;
-				break;
-			case minutes:
-				state = seconds;
-				break;
-			case seconds:
-				// Return to caller
-				return;
-			}
-		}
+enum set_time_state set_time_current_state = hours;
+struct time *set_time_current = NULL;
+BYTE set_time_column;
+BYTE set_time_arrow_column;
+
+void set_time_button0(void) {
+	// Increment value
+	switch (set_time_current_state) {
+	case hours:
+		time_cycle_hours(set_time_current);
+		break;
+	case minutes:
+		time_cycle_minutes(set_time_current);
+		break;
+	case seconds:
+		time_cycle_seconds(set_time_current);
+		break;
 	}
+}
+void set_time_button1(void) {
+	// Move arrow
+	display_string(1, set_time_arrow_column, "  "); // TODO Move?
+	set_time_arrow_column += 3; // 2 digits, 1 colon
+	// Next state
+	switch (set_time_current_state) {
+	case hours:
+		set_time_current_state = minutes;
+		break;
+	case minutes:
+		set_time_current_state = seconds;
+		break;
+	case seconds:
+		// Next mode
+		next_mode_func();
+		return;
+	}
+}
+
+void set_time_start(BYTE column, struct time *ptime) {
+	set_time_current_state = hours;
+	set_time_current = ptime;
+	set_time_column = column;
+	set_time_arrow_column = column - 2; // for spaces
+}
+
+void set_time_run() {
+// Display current time
+	display_time(0, set_time_column, set_time_current);
+// Draw arrow
+	display_string(1, set_time_arrow_column, "  ^^");
 }
