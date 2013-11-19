@@ -35,13 +35,14 @@ BOOL timer_is_interrupted() {
 
 void timer_handle_interrupt(void) {
 	if (timer_is_interrupted()) {		// timer0 overflowed
-		if (timer_handler) {
-			timer_handler();			// call handler
-		}
 		if (timer_is_repeating()) {
 			// Repeating, restart timer
 			timer_restart();
-		} else {
+		}
+		if (timer_handler) {
+			timer_handler();			// call handler
+		}
+		else {
 			// Non-repeating, disable timer
 			timer_set_enabled(FALSE);
 		}
