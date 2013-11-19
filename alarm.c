@@ -23,8 +23,7 @@ struct time clock_time = { 0, 0, 0 };
 struct time alarm_time = { 7, 0, 0 };
 
 // Timer
-#define TIMER_SCALE 128
-#define TIMER_OVERFLOWS 24411
+#define TIMER_TIMEOUT 500
 void handle_half_second(void);
 
 // Seconds remaining until alarm stops
@@ -50,9 +49,7 @@ void set_time_run_loop(BYTE column, struct time *ptime);
 void display_time(BYTE line, BYTE column, struct time *ptime);
 
 // Alarm
-#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();
-void alarm_stop();
-BOOL alarm_is_running();
+#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();void alarm_stop();BOOL alarm_is_running();
 void alarm_run_tick();
 
 long uptime = 0;
@@ -67,11 +64,8 @@ void main(void) {
 	// Initialize timer
 	timer_init();
 	timer_set_handler(&handle_half_second);
-	//timer_set_scale(TIMER_SCALE);
-	//timer_set_overflows(TIMER_OVERFLOWS);
-	timer_set_timeout(500);
-	timer_restart();
 	timer_set_repeating(TRUE);
+	timer_set_timeout(TIMER_TIMEOUT);
 	timer_set_enabled(TRUE);
 
 	// Initialize I/O

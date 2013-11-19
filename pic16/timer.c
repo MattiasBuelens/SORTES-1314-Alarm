@@ -14,12 +14,12 @@
 #define TIMER_CYCLES_PER_SECOND 6249248
 
 BOOL timer_repeating = FALSE;
-WORD timer_overflows = 0xFFFF;
+DWORD timer_ticks = 0;
+DWORD timer_remaining_ticks = 0;
 TIMER_HANDLER timer_handler = NULL;
-WORD nb_remaining = 0;
 
-void _timer_set_scale(WORD scale);
-void _timer_set_overflows(WORD nb_overflows);
+void timer_set_scale(DWORD scale);
+void timer_set_ticks(DWORD nb_ticks);
 
 void timer_init(void) {
 	RCONbits.IPEN = 1;			// enable interrupts priority levels
@@ -41,17 +41,24 @@ BOOL timer_is_interrupted() {
 
 void timer_handle_interrupt(void) {
 	if (timer_is_interrupted()) {		// timer0 overflowed
+		if (timer_remaining_ticks > 0) {
+			// Remaining ticks left, continue timer
+			timer_set_ticks(timer_remaining_ticks);
+			timer_reset();
+			return;
+		}
 		if (timer_is_repeating()) {
 			// Repeating, restart timer
 			timer_restart();
+			timer_set_enabled(TRUE);
 		} else {
 			// Non-repeating, disable timer
 			timer_set_enabled(FALSE);
 		}
+		timer_reset();					// reset timer interrupt
 		if (timer_handler) {
 			timer_handler();			// call handler
 		}
-		timer_reset();
 	}
 }
 
@@ -60,8 +67,7 @@ void timer_reset(void) {
 }
 
 void timer_restart(void) {
-	TMR0H = HIGH(nb_remaining);
-	TMR0L = LOW(nb_remaining);					// reset timeout
+	timer_set_ticks(timer_ticks);			// reset timeout
 }
 
 BOOL timer_is_enabled(void) {
@@ -85,23 +91,40 @@ void timer_set_handler(TIMER_HANDLER handler) {
 }
 
 void timer_set_timeout(WORD milliseconds) {
-	// Determine counter overflow amount for interrupt
-	WORD nb_overflows = (milliseconds * TIMER_CYCLES_PER_SECOND) / 1000;
-	// Determine scale to make the amount fit in 16 bits
-	WORD scale = 1;
-	while (nb_overflows > 0x10000) {
-		nb_overflows >>= 1;
-		scale <<= 1;
-	}
-	_timer_set_scale(scale);
-	_timer_set_overflows(nb_overflows); // do something smart with remainder
-	// if remainder > 0.5 round up else round down:
-	// every 1/remainder time nb_overflows + 1 (if <=0.5) corrects to fast
-	// every 1/(1-remainder) time nb_overflows -1 (if>0.5) corrects to slow
-
+	// Determine tick amount for interrupt
+	DWORD nb_ticks = ((DWORD) milliseconds) * TIMER_CYCLES_PER_SECOND / 1000;
+	// Store amount for restarting timers
+	timer_ticks = nb_ticks;
+	// Configure timer
+	timer_set_ticks(nb_ticks);
 }
 
-void _timer_set_scale(WORD scale) {
+void timer_set_ticks(DWORD nb_ticks) {
+	// Determine scale to make the amount fit in 16 bits
+	// but without exceeding the prescaler range
+	DWORD nb_current_ticks = nb_ticks, scale = 1;
+	WORD timer_value;
+	while (nb_current_ticks >= 0x10000 && scale < 256) {
+		nb_current_ticks >>= 1;
+		scale <<= 1;
+	}
+	if (nb_current_ticks >= 0x10000) {
+		// Too large for one single overflow
+		// Use (a lot of) timers with maximum span
+		nb_current_ticks = 0x10000;
+		scale = 256;
+	}
+	// Set scale
+	timer_set_scale(scale);
+	// Set remaining ticks
+	timer_remaining_ticks = nb_ticks - (nb_current_ticks * scale);
+	// Set timer value
+	timer_value = 0x10000 - ((WORD) nb_current_ticks);
+	TMR0H = HIGH(timer_value);
+	TMR0L = LOW(timer_value);
+}
+
+void timer_set_scale(DWORD scale) {
 	if (scale == 1u) {
 		// Disable timer0 prescaler
 		T0CONbits.PSA = 1;
@@ -121,8 +144,3 @@ void _timer_set_scale(WORD scale) {
 		T0CONbits.T0PS0 = (scaleExponent >> 0) & 1;
 	}
 }
-
-void _timer_set_overflows(WORD nb_overflows) {
-	nb_remaining = 0x10000 - nb_overflows;
-}
-
