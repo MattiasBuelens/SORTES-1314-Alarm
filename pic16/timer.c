@@ -88,8 +88,6 @@ void timer_set_timeout(WORD milliseconds) {
 	// Determine scale to make the amount fit in 16 bits
 	// but without exceeding the prescaler range
 	DWORD scale = 1;
-	// Store amount for restarting timers
-	timer_ticks = nb_ticks;
 	while (nb_ticks >= 0x10000 && scale < 256) {
 		nb_ticks >>= 1;
 		scale <<= 1;
@@ -99,6 +97,8 @@ void timer_set_timeout(WORD milliseconds) {
 		nb_ticks = 0x10000;
 		scale = 256;
 	}
+	// Store amount for restarting timers
+	timer_ticks = nb_ticks;
 	// Set scale
 	timer_set_scale(scale);
 	// Configure timer

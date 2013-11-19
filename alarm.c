@@ -12,7 +12,6 @@
 #include "platform/led.h"
 #include "platform/timer.h"
 
-#include "button.c"
 #include "time.c"
 
 #define LOW(a)     (a & 0xFF)
@@ -35,27 +34,33 @@ enum mode {
 	mode_show_clock, mode_set_clock_time, mode_set_alarm_time
 };
 enum mode current_mode = mode_show_clock;
-void *(current_mode_func)(void) = NULL;
-void *(next_mode_func)(void) = NULL;
+typedef void (*MODE_HANDLER)();
+MODE_HANDLER current_mode_func;
+MODE_HANDLER next_mode_start;
 
-void show_clock_start();
-void set_clock_time_start();
-void set_alarm_time_start();
+void show_clock_start(void);
+void set_clock_time_start(void);
+void set_alarm_time_start(void);
 
 // Set time (clock/alarm) mode
 enum set_time_state {
 	hours, minutes, seconds
 };
-void set_time_run_loop(BYTE column, struct time *ptime);
+enum set_time_state set_time_current_state = hours;
+struct time *set_time_current = NULL;
+BYTE set_time_column;
+BYTE set_time_arrow_column;
+void set_time_start(BYTE column, struct time *ptime);
+void set_time_run(void);
 
 // Display
 void display_time(BYTE line, BYTE column, struct time *ptime);
 
 // Alarm
-#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start();void alarm_stop();BOOL alarm_is_running();void alarm_run_tick();
-/*
- * Main routine.
- */
+#define ALARM_DURATION (30 * 2)		// 30 * 2 per half-secondvoid alarm_start(void);void alarm_stop(void);BOOL alarm_is_running(void);
+void alarm_run_tick(void);
+
+// Main routine
 void main(void) {
 	// Initialize timer
 	timer_set_handler(&handle_half_second);
@@ -70,20 +75,12 @@ void main(void) {
 	led_set_all(FALSE);
 
 	// Set clock and alarm
-
+	set_clock_time_start();
+	next_mode_start = &set_alarm_time_start;
 
 	while (TRUE) {
 		current_mode_func();
 	}
-}
-
-/**
- * High-priority interrupt routine.
- */
-void high_isr(void)
-__interrupt (1) {
-	// Handle timer interrupts
-	timer_handle_interrupt();
 }
 
 /**
@@ -93,6 +90,15 @@ void low_isr(void)
 __interrupt (2) {
 	// Handle button interrupts
 	button_handle_interrupt();
+}
+
+/**
+ * High-priority interrupt routine.
+ */
+void high_isr(void)
+__interrupt (1) {
+	// Handle timer interrupts
+	timer_handle_interrupt();
 }
 
 /**
@@ -159,15 +165,7 @@ void display_time(BYTE line, BYTE column, struct time * ptime) {
 /**
  * Show clock mode.
  */
-void show_clock_start() {
-	current_mode = mode_show_clock;
-	current_mode_func = &show_clock;
-	next_mode_func = NULL;
-	button_set_handler(button0, set_clock_time_start);
-	button_set_handler(button1, set_alarm_time_start);
-}
-
-void show_clock() {
+void show_clock_run() {
 	// Display clock and alarm time
 	display_string(0, 0, "Clock: ");
 	display_time(0, 7, &clock_time);
@@ -175,49 +173,48 @@ void show_clock() {
 	display_time(1, 7, &alarm_time);
 }
 
+void show_clock_start() {
+	current_mode = mode_show_clock;
+	current_mode_func = &show_clock_run;
+	button_set_handler(button0, &set_clock_time_start);
+	button_set_handler(button1, &set_alarm_time_start);
+}
+
 /**
  * Set clock time mode.
  */
-void set_clock_time_start() {
-	current_mode = mode_set_clock_time;
-	next_mode_func = &show_clock;
-	// Stop alarm
-	alarm_stop();
-	// Set time
-	display_clear();
+void set_clock_time_run() {
 	display_string(0, 0, "Clock: ");
-	set_time_start(7, &clock_time);
+	set_time_run();
 }
 
-void set_clock_time() {
+void set_clock_time_start() {
 	current_mode = mode_set_clock_time;
+	current_mode_func = &set_clock_time_run;
+	next_mode_start = &show_clock_start;
 	// Stop alarm
 	alarm_stop();
 	// Set time
-	display_clear();
-	display_string(0, 0, "Clock: ");
-	set_time_run_loop(7, &clock_time);
-	display_clear();
+	set_time_start(7, &clock_time);
 }
 
 /**
  * Set alarm time mode.
  */
-void set_alarm_time() {
+void set_alarm_time_run() {
+	display_string(0, 0, "Alarm: ");
+	set_time_run();
+}
+
+void set_alarm_time_start() {
 	current_mode = mode_set_alarm_time;
+	current_mode_func = &set_alarm_time_run;
+	next_mode_start = &show_clock_start;
 	// Stop alarm
 	alarm_stop();
 	// Set time
-	display_clear();
-	display_string(0, 0, "Alarm: ");
-	set_time_run_loop(7, &alarm_time);
-	display_clear();
+	set_time_start(7, &alarm_time);
 }
-
-enum set_time_state set_time_current_state = hours;
-struct time *set_time_current = NULL;
-BYTE set_time_column;
-BYTE set_time_arrow_column;
 
 void set_time_button0(void) {
 	// Increment value
@@ -235,7 +232,6 @@ void set_time_button0(void) {
 }
 void set_time_button1(void) {
 	// Move arrow
-	display_string(1, set_time_arrow_column, "  "); // TODO Move?
 	set_time_arrow_column += 3; // 2 digits, 1 colon
 	// Next state
 	switch (set_time_current_state) {
@@ -247,7 +243,7 @@ void set_time_button1(void) {
 		break;
 	case seconds:
 		// Next mode
-		next_mode_func();
+		next_mode_start();
 		return;
 	}
 }
@@ -257,11 +253,14 @@ void set_time_start(BYTE column, struct time *ptime) {
 	set_time_current = ptime;
 	set_time_column = column;
 	set_time_arrow_column = column - 2; // for spaces
+
+	button_set_handler(button0, &set_time_button0);
+	button_set_handler(button1, &set_time_button1);
 }
 
 void set_time_run() {
-// Display current time
+	// Display current time
 	display_time(0, set_time_column, set_time_current);
-// Draw arrow
+	// Draw arrow
 	display_string(1, set_time_arrow_column, "  ^^");
 }

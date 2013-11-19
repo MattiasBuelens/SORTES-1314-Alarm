@@ -34,14 +34,6 @@ void button_init(void) {
 	INTCON3bits.INT3F = 0;		// clear INT3 flag
 }
 
-BOOL button0_down() {
-	return BUTTON0_IO == 0u;
-}
-
-BOOL button1_down() {
-	return BUTTON1_IO == 0u;
-}
-
 void button_set_handler(enum button_e button, BUTTON_HANDLER handler) {
 	switch (button) {
 	case button0:

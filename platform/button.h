@@ -14,10 +14,6 @@ enum button_e {
 void button_init(void);
 void button_handle_interrupt(void);
 
-// TODO Remove
-BOOL button0_down(void);
-BOOL button1_down(void);
-
 typedef void (*BUTTON_HANDLER)();
 void button_set_handler(enum button_e button, BUTTON_HANDLER handler);
 
