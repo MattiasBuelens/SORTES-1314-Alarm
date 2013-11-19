@@ -69,7 +69,7 @@ void main(void) {
 	timer_set_handler(&handle_half_second);
 	//timer_set_scale(TIMER_SCALE);
 	//timer_set_overflows(TIMER_OVERFLOWS);
-	timer_set_interrupt_time(500);
+	timer_set_timeout(500);
 	timer_restart();
 	timer_set_repeating(TRUE);
 	timer_set_enabled(TRUE);

@@ -20,8 +20,8 @@ void timer_set_enabled(BOOL enabled);
 BOOL timer_is_repeating();
 void timer_set_repeating(BOOL repeating);
 void timer_set_handler(TIMER_HANDLER handler);
-void timer_set_scale(WORD scale);
-void timer_set_overflows(WORD nb_overflows);
-void timer_set_interrupt_time(WORD milliseconds);
+//void timer_set_scale(WORD scale);
+//void timer_set_overflows(WORD nb_overflows);
+void timer_set_timeout(WORD milliseconds);
 
 #endif /* PLATFORM_TIMER_H_ */

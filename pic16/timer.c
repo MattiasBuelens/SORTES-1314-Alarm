@@ -18,6 +18,9 @@ WORD timer_overflows = 0xFFFF;
 TIMER_HANDLER timer_handler = NULL;
 WORD nb_remaining = 0;
 
+void _timer_set_scale(WORD scale);
+void _timer_set_overflows(WORD nb_overflows);
+
 void timer_init(void) {
 	RCONbits.IPEN = 1;			// enable interrupts priority levels
 	INTCON2bits.TMR0IP = 1;		// set timer interrupt as high priority
@@ -81,24 +84,24 @@ void timer_set_handler(TIMER_HANDLER handler) {
 	timer_handler = handler;
 }
 
-void timer_set_interrupt_time(WORD milliseconds) {
-	//determine counter overflow amount for intterupt
+void timer_set_timeout(WORD milliseconds) {
+	// Determine counter overflow amount for interrupt
 	WORD nb_overflows = (milliseconds * TIMER_CYCLES_PER_SECOND) / 1000;
-	//determine prescaler value
+	// Determine scale to make the amount fit in 16 bits
 	WORD scale = 1;
-	while (nb_overflows > 2 ^ 16) {
-		nb_overflows >>= 2;
+	while (nb_overflows > 0x10000) {
+		nb_overflows >>= 1;
 		scale <<= 1;
 	}
-	timer_set_scale(scale);
-	timer_set_overflows(nb_overflows); // do something smart with remainder
+	_timer_set_scale(scale);
+	_timer_set_overflows(nb_overflows); // do something smart with remainder
 	// if remainder > 0.5 round up else round down:
 	// every 1/remainder time nb_overflows + 1 (if <=0.5) corrects to fast
 	// every 1/(1-remainder) time nb_overflows -1 (if>0.5) corrects to slow
 
 }
 
-void timer_set_scale(WORD scale) {
+void _timer_set_scale(WORD scale) {
 	if (scale == 1u) {
 		// Disable timer0 prescaler
 		T0CONbits.PSA = 1;
@@ -119,7 +122,7 @@ void timer_set_scale(WORD scale) {
 	}
 }
 
-void timer_set_overflows(WORD nb_overflows) {
+void _timer_set_overflows(WORD nb_overflows) {
 	nb_remaining = 0x10000 - nb_overflows;
 }
 
