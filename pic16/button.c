@@ -5,6 +5,7 @@
 #define __18F97J60
 #define __SDCC__
 #include "../Include/HardwareProfile.h"
+#include <pic18fregs.h>
 
 #include "../platform/button.h"
 
@@ -27,10 +28,10 @@ void button_init(void) {
 	INTCON3bits.INT1F = 0;		// clear INT1 flag
 
 	// Button 1
-	INTCON3bits.INT3P = 0;		// connect INT3 interrupt to low priority
+	INTCON2bits.INT3IP = 0;		// connect INT3 interrupt to low priority
 	INTCON2bits.INTEDG3 = 0;	// INT3 interrupts on falling edge
 	INTCON3bits.INT3E = 1;		// enable INT3 interrupt
-	INTCON3bits.INT3F = 0;		// clear INT1 flag
+	INTCON3bits.INT3F = 0;		// clear INT3 flag
 }
 
 BOOL button0_down() {
@@ -78,7 +79,6 @@ BOOL button_reset(enum button_e button) {
 			return TRUE;
 		}
 		break;
-	default:
-		return FALSE;
 	}
+	return FALSE;
 }
