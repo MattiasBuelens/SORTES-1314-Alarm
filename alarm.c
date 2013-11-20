@@ -255,15 +255,19 @@ void set_time_start(BYTE column, struct time *ptime) {
 	set_time_current_state = hours;
 	set_time_current = ptime;
 	set_time_column = column;
-	set_time_arrow_column = column - 3; // for spaces
+	set_time_arrow_column = column;
 
 	button_set_handler(button0, &set_time_button0);
 	button_set_handler(button1, &set_time_button1);
 }
 
 void set_time_run() {
+	int i;
 	// Display current time
 	display_time(0, set_time_column, set_time_current);
 	// Draw arrow
-	display_string(1, set_time_arrow_column, "   ^^");
+	for (i = 0; i < set_time_arrow_column; i++) {
+		display_char(1, i, ' ');
+	}
+	display_string(1, set_time_arrow_column, "^^      ");
 }
