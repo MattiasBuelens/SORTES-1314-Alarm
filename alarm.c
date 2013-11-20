@@ -115,6 +115,8 @@ void handle_half_second() {
 		}
 	}
 
+	// Tick clock
+	led_toggle(LED0);
 	// Tick alarm
 	alarm_run_tick();
 
@@ -147,10 +149,10 @@ BOOL alarm_is_running() {
 
 void alarm_run_tick() {
 	if (alarm_is_running()) {
-		led_toggle_all();
+		led_toggle(LED1);
 		alarm_remaining--;
 	} else {
-		led_set_all(FALSE);
+		led_set(LED1, FALSE);
 	}
 }
 
