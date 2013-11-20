@@ -20,18 +20,19 @@ void button_init(void) {
 
 	INTCONbits.GIE = 1;			// enable interrupts
 	RCONbits.IPEN = 1;			// enable interrupts priority levels
+	INTCONbits.PEIE = 1;		// enable peripheral interrupts (such as buttons)
 
 	// Button 0
-	INTCON3bits.INT1P = 0;		// connect INT1 interrupt to low priority
-	INTCON2bits.INTEDG1 = 0;	// INT1 interrupts on falling edge
-	INTCON3bits.INT1E = 1;		// enable INT1 interrupt
-	INTCON3bits.INT1F = 0;		// clear INT1 flag
-
-	// Button 1
 	INTCON2bits.INT3IP = 0;		// connect INT3 interrupt to low priority
 	INTCON2bits.INTEDG3 = 0;	// INT3 interrupts on falling edge
 	INTCON3bits.INT3E = 1;		// enable INT3 interrupt
 	INTCON3bits.INT3F = 0;		// clear INT3 flag
+
+	// Button 1
+	INTCON3bits.INT1P = 0;		// connect INT1 interrupt to low priority
+	INTCON2bits.INTEDG1 = 0;	// INT1 interrupts on falling edge
+	INTCON3bits.INT1E = 1;		// enable INT1 interrupt
+	INTCON3bits.INT1F = 0;		// clear INT1 flag
 }
 
 void button_set_handler(enum button_e button, BUTTON_HANDLER handler) {
@@ -57,17 +58,17 @@ void button_handle_interrupt() {
 }
 
 BOOL button_reset(enum button_e button) {
-	// clear interrupt bits
+	// Check and clear interrupt bits
 	switch (button) {
 	case button0:
-		if (INTCON3bits.INT1F == 1) {
-			INTCON3bits.INT1F = 0;
+		if (INTCON3bits.INT3F == 1) {
+			INTCON3bits.INT3F = 0;
 			return TRUE;
 		}
 		break;
 	case button1:
-		if (INTCON3bits.INT3F == 1) {
-			INTCON3bits.INT3F = 0;
+		if (INTCON3bits.INT1F == 1) {
+			INTCON3bits.INT1F = 0;
 			return TRUE;
 		}
 		break;
