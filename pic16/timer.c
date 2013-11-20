@@ -94,6 +94,7 @@ void timer_set_timeout(WORD milliseconds) {
 	}
 	if (nb_ticks >= 0x10000) {
 		// Too large for one single overflow
+		// Simply max out the timer
 		nb_ticks = 0x10000;
 		scale = 256;
 	}
